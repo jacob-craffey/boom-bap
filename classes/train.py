@@ -6,6 +6,8 @@ from Tkinter import *
 import pyaudio
 from pydub import AudioSegment
 
+path = "test_data/recording/"
+recording = path + "recording.wav"
 
 class Train:
     def detect_leading_silence(self, sound, silence_threshold=-28.0, chunk_size=10):
@@ -30,9 +32,8 @@ class Train:
         CHANNELS = 2
         RATE = 44100
         RECORD_SECONDS = 2
-        OUTPUT_DIR = "test_data/" + self.txt_dropdown.get() + "/recording/"
+        OUTPUT_DIR = "test_data/" + self.txt_dropdown.get() + "/"
         file_number = len(os.listdir(OUTPUT_DIR))
-        WAVE_OUTPUT_FILENAME = OUTPUT_DIR + str(file_number) + ".wav"
 
         p = pyaudio.PyAudio()
 
@@ -42,7 +43,6 @@ class Train:
                         input=True,
                         frames_per_buffer=CHUNK)
 
-        self.lbl_rec["text"] = "RECORDING"
         print("* recording " + str(file_number))
 
         frames = []
@@ -57,37 +57,32 @@ class Train:
         stream.close()
         p.terminate()
 
-        wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
+        wf = wave.open(recording, 'wb')
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(p.get_sample_size(FORMAT))
         wf.setframerate(RATE)
         wf.writeframes(b''.join(frames))
         wf.close()
 
-    def train(self, instrument):
-        filepath = "test_data/" + instrument + "/recording/"
-        directory = os.fsencode(filepath)
-        for file in os.listdir(directory):
-            filename = os.fsdecode(file)
-            if filename.endswith(".wav"):
-                tempfilename = filepath + filename
-                sound = AudioSegment.from_file(tempfilename, format="wav")
-                start_trim = self.detect_leading_silence(sound)
-                end_trim = self.detect_leading_silence(sound.reverse())
-                duration = len(sound)
-                trimmed_sound = sound[start_trim:duration - end_trim]
-                trimmed_sound.export("test_data/" + instrument + "/trimmed/" + filename, format="wav")
+        self.train(OUTPUT_DIR)
+        os.remove(recording)
 
-            else:
-                continue
+    def train(self, save_path):
+        tempfilename = recording
+        print(tempfilename)
+        sound = AudioSegment.from_file(tempfilename, format="wav")
+        start_trim = self.detect_leading_silence(sound)
+        end_trim = self.detect_leading_silence(sound.reverse())
+        duration = len(sound)
+        trimmed_sound = sound[start_trim:duration - end_trim]
+        trimmed_sound.export(save_path + str(len(os.listdir(save_path))) + ".wav", format="wav")
 
-    def record_timer(self, instrument):
+    def record_timer(self):
         for i in range(10):
             if i % 2 == 0:
                 self.record_audio()
             else:
                 time.sleep(2)
-        self.train(instrument)
 
     def __init__(self):
         self.root = Tk()
@@ -98,7 +93,7 @@ class Train:
         self.txt_dropdown.set("None")
         self.dropdown = OptionMenu(self.root, self.txt_dropdown, "Kick", "Snare", "HiHat")
 
-        self.btn_record = Button(self.root, text="Record", command=lambda: self.record_timer(self.txt_dropdown.get()))
+        self.btn_record = Button(self.root, text="Record", command=lambda: self.record_timer())
 
         self.lbl_rec = Label(self.root, text="")
 
