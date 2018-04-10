@@ -1,9 +1,10 @@
-from tkinter import *
-import wave
-import pyaudio
-import time
-from pydub import AudioSegment
 import os
+import time
+import wave
+from Tkinter import *
+
+import pyaudio
+from pydub import AudioSegment
 
 
 class Train:
@@ -23,13 +24,15 @@ class Train:
 
         return trim_ms
 
-    def record_audio(self, index):
+    def record_audio(self):
         CHUNK = 1024
         FORMAT = pyaudio.paInt16
         CHANNELS = 2
         RATE = 44100
         RECORD_SECONDS = 2
-        WAVE_OUTPUT_FILENAME = "test_data/" + self.txt_dropdown.get() + "/recording/" + str(index/2) + ".wav"
+        OUTPUT_DIR = "test_data/" + self.txt_dropdown.get() + "/recording/"
+        file_number = len(os.listdir(OUTPUT_DIR))
+        WAVE_OUTPUT_FILENAME = OUTPUT_DIR + str(file_number) + ".wav"
 
         p = pyaudio.PyAudio()
 
@@ -40,8 +43,7 @@ class Train:
                         frames_per_buffer=CHUNK)
 
         self.lbl_rec["text"] = "RECORDING"
-        print("* recording " + str(index/2))
-
+        print("* recording " + str(file_number))
 
         frames = []
 
@@ -82,7 +84,7 @@ class Train:
     def record_timer(self, instrument):
         for i in range(10):
             if i % 2 == 0:
-                self.record_audio(index=i)
+                self.record_audio()
             else:
                 time.sleep(2)
         self.train(instrument)
