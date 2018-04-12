@@ -5,6 +5,7 @@ from Tkinter import *
 
 import pyaudio
 from pydub import AudioSegment
+from scipy.io import wavfile
 
 path = "test_data/recording/"
 recording = path + "recording.wav"
@@ -84,6 +85,16 @@ class Train:
             else:
                 time.sleep(2)
 
+    def train_data(self):
+        import os
+        data_directory = ["test_data/Kick", "test_data/HiHat", "test_data/Snare"]
+        for dir in data_directory:
+            for file in os.listdir(dir):
+                filepath = dir + '/' + file
+                wf = wave.open(filepath, 'rb')
+                rate, data = wavfile.read(filepath)
+                print data
+
     def __init__(self):
         self.root = Tk()
         self.root.title("Training")
@@ -95,9 +106,12 @@ class Train:
 
         self.btn_record = Button(self.root, text="Record", command=lambda: self.record_timer())
 
+        self.btn_train = Button(self.root, text="Train Data", command=lambda: self.train_data())
+
         self.lbl_rec = Label(self.root, text="")
 
         self.dropdown.pack()
+        self.btn_train.pack()
         self.btn_record.pack()
         self.lbl_rec.pack()
 
