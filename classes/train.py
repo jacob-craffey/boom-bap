@@ -6,6 +6,10 @@ from Tkinter import *
 import pyaudio
 from pydub import AudioSegment
 from scipy.io import wavfile
+import matplotlib
+matplotlib.use("TkAgg")
+import matplotlib.pyplot as plt
+
 
 path = "test_data/recording/"
 recording = path + "recording.wav"
@@ -79,6 +83,7 @@ class Train:
         trimmed_sound.export(save_path + str(len(os.listdir(save_path))) + ".wav", format="wav")
 
     def record_timer(self):
+        time.sleep(1)
         for i in range(10):
             if i % 2 == 0:
                 self.record_audio()
@@ -88,12 +93,69 @@ class Train:
     def train_data(self):
         import os
         data_directory = ["test_data/Kick", "test_data/HiHat", "test_data/Snare"]
+        kickWavelengths = []
+        snareWavelengths = []
+        hiHatWavelengths = []
         for dir in data_directory:
+            print dir
             for file in os.listdir(dir):
                 filepath = dir + '/' + file
-                wf = wave.open(filepath, 'rb')
-                rate, data = wavfile.read(filepath)
-                print data
+                if filepath.find(".wav") and file[0] != ".":
+                    rate, data = wavfile.read(filepath)
+                    # print data
+                    mono = []
+                    for sample in data:
+                        avg = sample[0] + sample[1]
+                        avg = avg / 2
+                        mono.append(avg)
+                    index = 0
+                    wavelengthTransitions = []
+                    for value in mono:
+                        if index+1 < len(mono) and mono[index] < 0 and mono[index+1] > 0:
+                            # print "Crossed Zero at " + str(index)
+                            wavelengthTransitions.append(index)
+                        index += 1
+                    # print wavelengthTransitions
+
+                    waveIndex = 0
+                    wavelengths = []
+                    for value in wavelengthTransitions:
+                        if waveIndex+2 < len(wavelengthTransitions):
+                            wavelengths.append(wavelengthTransitions[waveIndex + 2] - wavelengthTransitions[waveIndex])
+                        waveIndex += 2
+
+                    if dir == "test_data/Kick":
+                        kickWavelengths.append(wavelengths)
+                    elif dir == "test_data/HiHat":
+                        hiHatWavelengths.append(wavelengths)
+                    elif dir == "test_data/Snare":
+                        snareWavelengths.append(wavelengths)
+
+            print kickWavelengths
+            print hiHatWavelengths
+            print snareWavelengths
+
+        kicksum = 0
+        for i in range(len(kickWavelengths)):
+            kicksum += len(kickWavelengths[i])
+        kicksum = kicksum / len(kickWavelengths)
+
+
+        snaresum = 0
+        for i in range(len(snareWavelengths)):
+            snaresum += len(snareWavelengths[i])
+        snaresum = snaresum / len(snareWavelengths)
+
+        hihatsum = 0
+        for i in range(len(hiHatWavelengths)):
+            hihatsum += len(hiHatWavelengths[i])
+        hihatsum = hihatsum / len(hiHatWavelengths)
+
+
+        print "Kick: " + str(kicksum)
+        print "Snare: " + str(snaresum)
+        print "HiHat: " + str(hihatsum)
+
 
     def __init__(self):
         self.root = Tk()
