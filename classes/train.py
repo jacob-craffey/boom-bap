@@ -3,57 +3,54 @@ import time
 import wave
 from Tkinter import *
 
+import matplotlib
 import pyaudio
 from pydub import AudioSegment
 from scipy.io import wavfile
-import matplotlib
+
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-
 
 path = "test_data/recording/"
 recording = path + "recording.wav"
 
+
 class Train:
+
+    # sound is a pydub.AudioSegment
+    # silence_threshold in dB
+    # chunk_size in ms
+
+    # iterate over chunks until you find the first one with sound
     def detect_leading_silence(self, sound, silence_threshold=-28.0, chunk_size=10):
-        '''
-        sound is a pydub.AudioSegment
-        silence_threshold in dB
-        chunk_size in ms
-
-        iterate over chunks until you find the first one with sound
-        '''
         trim_ms = 0  # ms
-
         assert chunk_size > 0  # to avoid infinite loop
         while sound[trim_ms:trim_ms + chunk_size].dBFS < silence_threshold and trim_ms < len(sound):
             trim_ms += chunk_size
-
         return trim_ms
 
     def record_audio(self):
-        CHUNK = 1024
-        FORMAT = pyaudio.paInt16
-        CHANNELS = 2
-        RATE = 44100
-        RECORD_SECONDS = 1
-        OUTPUT_DIR = "test_data/" + self.txt_dropdown.get() + "/"
-        file_number = len(os.listdir(OUTPUT_DIR))
+        chunk = 1024
+        format = pyaudio.paInt16
+        channels = 2
+        rate = 44100
+        record_seconds = 1
+        output_dir = "test_data/" + self.txt_dropdown.get() + "/"
+        file_number = len(os.listdir(output_dir))
 
         p = pyaudio.PyAudio()
 
-        stream = p.open(format=FORMAT,
-                        channels=CHANNELS,
-                        rate=RATE,
+        stream = p.open(format=format,
+                        channels=channels,
+                        rate=rate,
                         input=True,
-                        frames_per_buffer=CHUNK)
+                        frames_per_buffer=chunk)
 
         print("* recording " + str(file_number))
 
         frames = []
-
-        for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-            data = stream.read(CHUNK)
+        for i in range(0, int(rate / chunk * record_seconds)):
+            data = stream.read(chunk)
             frames.append(data)
 
         print("* done recording")
@@ -63,18 +60,17 @@ class Train:
         p.terminate()
 
         wf = wave.open(recording, 'wb')
-        wf.setnchannels(CHANNELS)
-        wf.setsampwidth(p.get_sample_size(FORMAT))
-        wf.setframerate(RATE)
+        wf.setnchannels(channels)
+        wf.setsampwidth(p.get_sample_size(format))
+        wf.setframerate(rate)
         wf.writeframes(b''.join(frames))
         wf.close()
 
-        self.train(OUTPUT_DIR)
+        self.train(output_dir)
         os.remove(recording)
 
     def train(self, save_path):
         tempfilename = recording
-        print(tempfilename)
         sound = AudioSegment.from_file(tempfilename, format="wav")
         start_trim = self.detect_leading_silence(sound)
         end_trim = self.detect_leading_silence(sound.reverse())
@@ -91,21 +87,18 @@ class Train:
                 time.sleep(2)
 
     def train_data(self):
-        import os
         data_directory = ["test_data/Kick", "test_data/HiHat", "test_data/Snare"]
-        kickWavelengths = []
-        snareWavelengths = []
-        hiHatWavelengths = []
-        kickDuration = []
-        snareDuration = []
-        hihatDuration = []
+        kick_wavelengths = []
+        snare_wavelengths = []
+        hihat_wavelengths = []
+        kick_duration = []
+        snare_duration = []
+        hihat_duration = []
         for dir in data_directory:
-            print dir
             for file in os.listdir(dir):
                 filepath = dir + '/' + file
                 if filepath.find(".wav") and file[0] != ".":
                     rate, data = wavfile.read(filepath)
-                    # print data
                     mono = []
                     for sample in data:
                         avg = sample[0] + sample[1]
@@ -115,106 +108,89 @@ class Train:
 
                     if len(mono) < 10000 and len(mono) > 0:
                         if dir == "test_data/Kick":
-                            kickDuration.append(len(mono))
+                            kick_duration.append(len(mono))
                         elif dir == "test_data/HiHat":
-                            hihatDuration.append(len(mono))
+                            hihat_duration.append(len(mono))
                         elif dir == "test_data/Snare":
-                            snareDuration.append(len(mono))
+                            snare_duration.append(len(mono))
                     else:
                         os.remove(filepath)
 
                     index = 0
-                    wavelengthTransitions = []
+                    wavelength_transitions = []
                     for value in mono:
-                        if index+1 < len(mono) and mono[index] < 0 and mono[index+1] > 0:
-                            # print "Crossed Zero at " + str(index)
-                            wavelengthTransitions.append(index)
+                        if index + 1 < len(mono) and mono[index] < 0 and mono[index + 1] > 0:
+                            wavelength_transitions.append(index)
                         index += 1
-                    # print wavelengthTransitions
 
-                    waveIndex = 0
+                    wave_index = 0
                     wavelengths = []
-                    for value in wavelengthTransitions:
-                        if waveIndex+2 < len(wavelengthTransitions):
-                            wavelengths.append(wavelengthTransitions[waveIndex + 2] - wavelengthTransitions[waveIndex])
-                        waveIndex += 2
+                    for value in wavelength_transitions:
+                        if wave_index + 2 < len(wavelength_transitions):
+                            wavelengths.append(wavelength_transitions[wave_index + 2] - wavelength_transitions[wave_index])
+                        wave_index += 2
 
                     if dir == "test_data/Kick":
-                        kickWavelengths.append(wavelengths)
+                        kick_wavelengths.append(wavelengths)
                     elif dir == "test_data/HiHat":
-                        hiHatWavelengths.append(wavelengths)
+                        hihat_wavelengths.append(wavelengths)
                     elif dir == "test_data/Snare":
-                        snareWavelengths.append(wavelengths)
+                        snare_wavelengths.append(wavelengths)
 
-        kickWaveAverage = []
+        avg_kick_wave = []
 
-        for wav in kickWavelengths:
-            wavSum = 0
+        for wav in kick_wavelengths:
+            wave_sum = 0
             for wavelength in wav:
-                wavSum += wavelength
-            print len(wav)
+                wave_sum += wavelength
             if len(wav) == 0:
-                kickWaveAverage.append(wavSum)
+                avg_kick_wave.append(wave_sum)
             else:
-                kickWaveAverage.append(wavSum / len(wav))
+                avg_kick_wave.append(wave_sum / len(wav))
 
+        avg_hihat_wave = []
 
-        hihatWaveAverage = []
-
-        for wav in hiHatWavelengths:
-            wavSum = 0
+        for wav in hihat_wavelengths:
+            wave_sum = 0
             for wavelength in wav:
-                wavSum += wavelength
+                wave_sum += wavelength
             if len(wav) == 0:
-                hihatWaveAverage.append(wavSum)
+                avg_hihat_wave.append(wave_sum)
             else:
-                hihatWaveAverage.append(wavSum / len(wav))
+                avg_hihat_wave.append(wave_sum / len(wav))
 
-        snareWaveAverage = []
+        avg_snare_wave = []
 
-        for wav in snareWavelengths:
-            wavSum = 0
+        for wav in snare_wavelengths:
+            wave_sum = 0
             for wavelength in wav:
-                wavSum += wavelength
+                wave_sum += wavelength
             if len(wav) == 0:
-                snareWaveAverage.append(wavSum)
+                avg_snare_wave.append(wave_sum)
             else:
-                snareWaveAverage.append(wavSum / len(wav))
+                avg_snare_wave.append(wave_sum / len(wav))
 
+        kick_sum = sum(avg_kick_wave) / float(len(avg_kick_wave))
+        hihat_sum = sum(avg_hihat_wave) / float(len(avg_hihat_wave))
+        snare_sum = sum(avg_snare_wave) / float(len(avg_snare_wave))
 
+        avg_kick_duration = sum(kick_duration) / float(len(kick_duration))
+        avg_hihat_duration = sum(hihat_duration) / float(len(hihat_duration))
+        avg_snare_duration = sum(snare_duration) / float(len(snare_duration))
 
+        plt.scatter(kick_duration, avg_kick_wave, s=None, c="red")
+        plt.scatter(snare_duration, avg_snare_wave, s=None, c="green")
+        plt.scatter(hihat_duration, avg_hihat_wave, s=None, c="royalblue")
 
-        kicksum = sum(kickWaveAverage) / float(len(kickWaveAverage))
-        hihatsum = sum(hihatWaveAverage) / float(len(hihatWaveAverage))
-        snaresum = sum(snareWaveAverage) / float(len(snareWaveAverage))
-
-
-        print "kick wave average" + str(kickWaveAverage)
-        print "hihat wave average" + str(hihatWaveAverage)
-        print "snare wave average" + str(snareWaveAverage)
-
-
-
-
-
-        avgkickDuration = sum(kickDuration) / float(len(kickDuration))
-        avghihatDuration = sum(hihatDuration) / float(len(hihatDuration))
-        avgsnareDuration = sum(snareDuration) / float(len(snareDuration))
-
-        print "kick duration" + str(kickDuration)
-        print "snare duration" + str(snareDuration)
-        print "hihat duration" + str(hihatDuration)
-        print "kick waves" + str(kickWavelengths)
-        plt.scatter(kickDuration, kickWaveAverage, s=None, c="red")
-        plt.scatter(snareDuration, snareWaveAverage, s=None, c="green")
-        plt.scatter(hihatDuration, hihatWaveAverage, s=None, c="royalblue")
-
-        plt.scatter([avgkickDuration, avghihatDuration, avgsnareDuration],[kicksum, hihatsum, snaresum], s=None, c="orange")
-        plt.title("Sound Classifier (n=3)")
-        plt.xlabel("Duration (1 mb / sec)  --Lowpass filter set at -28db")
+        plt.scatter([avg_kick_duration, avg_hihat_duration, avg_snare_duration], [kick_sum, hihat_sum, snare_sum], s=None,
+                    c="orange")
+        plt.title("Sound Classifier")
+        plt.xlabel("Duration")
         plt.ylabel("Num of Waves")
         plt.show()
 
+    def test_data(self):
+        print""
 
     def __init__(self):
         self.root = Tk()
@@ -228,6 +204,7 @@ class Train:
         self.btn_record = Button(self.root, text="Record", command=lambda: self.record_timer())
 
         self.btn_train = Button(self.root, text="Train Data", command=lambda: self.train_data())
+        self.btn_test = Button(self.root, text="Test Data", command=lambda: self.test_data())
 
         self.lbl_rec = Label(self.root, text="")
 
