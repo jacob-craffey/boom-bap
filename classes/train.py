@@ -36,7 +36,7 @@ class Train:
         FORMAT = pyaudio.paInt16
         CHANNELS = 2
         RATE = 44100
-        RECORD_SECONDS = 2
+        RECORD_SECONDS = 1
         OUTPUT_DIR = "test_data/" + self.txt_dropdown.get() + "/"
         file_number = len(os.listdir(OUTPUT_DIR))
 
@@ -84,7 +84,7 @@ class Train:
 
     def record_timer(self):
         time.sleep(1)
-        for i in range(10):
+        for i in range(220):
             if i % 2 == 0:
                 self.record_audio()
             else:
@@ -96,6 +96,9 @@ class Train:
         kickWavelengths = []
         snareWavelengths = []
         hiHatWavelengths = []
+        kickDuration = []
+        snareDuration = []
+        hihatDuration = []
         for dir in data_directory:
             print dir
             for file in os.listdir(dir):
@@ -107,7 +110,19 @@ class Train:
                     for sample in data:
                         avg = sample[0] + sample[1]
                         avg = avg / 2
+
                         mono.append(avg)
+
+                    if len(mono) < 10000 and len(mono) > 0:
+                        if dir == "test_data/Kick":
+                            kickDuration.append(len(mono))
+                        elif dir == "test_data/HiHat":
+                            hihatDuration.append(len(mono))
+                        elif dir == "test_data/Snare":
+                            snareDuration.append(len(mono))
+                    else:
+                        os.remove(filepath)
+
                     index = 0
                     wavelengthTransitions = []
                     for value in mono:
@@ -131,30 +146,74 @@ class Train:
                     elif dir == "test_data/Snare":
                         snareWavelengths.append(wavelengths)
 
-            print kickWavelengths
-            print hiHatWavelengths
-            print snareWavelengths
+        kickWaveAverage = []
 
-        kicksum = 0
-        for i in range(len(kickWavelengths)):
-            kicksum += len(kickWavelengths[i])
-        kicksum = kicksum / len(kickWavelengths)
-
-
-        snaresum = 0
-        for i in range(len(snareWavelengths)):
-            snaresum += len(snareWavelengths[i])
-        snaresum = snaresum / len(snareWavelengths)
-
-        hihatsum = 0
-        for i in range(len(hiHatWavelengths)):
-            hihatsum += len(hiHatWavelengths[i])
-        hihatsum = hihatsum / len(hiHatWavelengths)
+        for wav in kickWavelengths:
+            wavSum = 0
+            for wavelength in wav:
+                wavSum += wavelength
+            print len(wav)
+            if len(wav) == 0:
+                kickWaveAverage.append(wavSum)
+            else:
+                kickWaveAverage.append(wavSum / len(wav))
 
 
-        print "Kick: " + str(kicksum)
-        print "Snare: " + str(snaresum)
-        print "HiHat: " + str(hihatsum)
+        hihatWaveAverage = []
+
+        for wav in hiHatWavelengths:
+            wavSum = 0
+            for wavelength in wav:
+                wavSum += wavelength
+            if len(wav) == 0:
+                hihatWaveAverage.append(wavSum)
+            else:
+                hihatWaveAverage.append(wavSum / len(wav))
+
+        snareWaveAverage = []
+
+        for wav in snareWavelengths:
+            wavSum = 0
+            for wavelength in wav:
+                wavSum += wavelength
+            if len(wav) == 0:
+                snareWaveAverage.append(wavSum)
+            else:
+                snareWaveAverage.append(wavSum / len(wav))
+
+
+
+
+        kicksum = sum(kickWaveAverage) / float(len(kickWaveAverage))
+        hihatsum = sum(hihatWaveAverage) / float(len(hihatWaveAverage))
+        snaresum = sum(snareWaveAverage) / float(len(snareWaveAverage))
+
+
+        print "kick wave average" + str(kickWaveAverage)
+        print "hihat wave average" + str(hihatWaveAverage)
+        print "snare wave average" + str(snareWaveAverage)
+
+
+
+
+
+        avgkickDuration = sum(kickDuration) / float(len(kickDuration))
+        avghihatDuration = sum(hihatDuration) / float(len(hihatDuration))
+        avgsnareDuration = sum(snareDuration) / float(len(snareDuration))
+
+        print "kick duration" + str(kickDuration)
+        print "snare duration" + str(snareDuration)
+        print "hihat duration" + str(hihatDuration)
+        print "kick waves" + str(kickWavelengths)
+        plt.scatter(kickDuration, kickWaveAverage, s=None, c="red")
+        plt.scatter(snareDuration, snareWaveAverage, s=None, c="green")
+        plt.scatter(hihatDuration, hihatWaveAverage, s=None, c="royalblue")
+
+        plt.scatter([avgkickDuration, avghihatDuration, avgsnareDuration],[kicksum, hihatsum, snaresum], s=None, c="orange")
+        plt.title("Sound Classifier (n=3)")
+        plt.xlabel("Duration (1 mb / sec)  --Lowpass filter set at -28db")
+        plt.ylabel("Num of Waves")
+        plt.show()
 
 
     def __init__(self):
