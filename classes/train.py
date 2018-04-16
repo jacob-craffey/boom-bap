@@ -11,9 +11,13 @@ from scipy.io import wavfile
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
+import math
+
 path = "test_data/recording/"
 recording = path + "recording.wav"
 
+wave_sums = []
+durations = []
 
 class Train:
 
@@ -87,6 +91,7 @@ class Train:
                 time.sleep(2)
 
     def train_data(self):
+        global durations, wave_sums
         data_directory = ["test_data/Kick", "test_data/HiHat", "test_data/Snare"]
         kick_wavelengths = []
         snare_wavelengths = []
@@ -182,6 +187,14 @@ class Train:
         plt.scatter(snare_duration, avg_snare_wave, s=None, c="green")
         plt.scatter(hihat_duration, avg_hihat_wave, s=None, c="royalblue")
 
+        durations.append(avg_kick_duration)
+        durations.append(avg_hihat_duration)
+        durations.append(avg_snare_duration)
+
+        wave_sums.append(kick_sum)
+        wave_sums.append(hihat_sum)
+        wave_sums.append(snare_sum)
+
         plt.scatter([avg_kick_duration, avg_hihat_duration, avg_snare_duration], [kick_sum, hihat_sum, snare_sum], s=None,
                     c="orange")
         plt.title("Sound Classifier")
@@ -190,7 +203,162 @@ class Train:
         plt.show()
 
     def test_data(self):
-        print""
+        global durations, wave_sums
+        kick_wavelengths = []
+        snare_wavelengths = []
+        hihat_wavelengths = []
+        kick_duration = []
+        snare_duration = []
+        hihat_duration = []
+        data_directory = ["test_data/testing/Kick", "test_data/testing/HiHat", "test_data/testing/Snare"]
+
+        for dir in data_directory:
+            for file in os.listdir(dir):
+                filepath = dir + '/' + file
+
+                if filepath.find(".wav") and file[0] != ".":
+                    rate, data = wavfile.read(filepath)
+                    mono = []
+                    for sample in data:
+                        avg = sample[0] + sample[1]
+                        avg = avg / 2
+
+                        mono.append(avg)
+
+                    if len(mono) < 10000 and len(mono) > 0:
+                        if dir == "test_data/testing/Kick":
+                            kick_duration.append(len(mono))
+                        elif dir == "test_data/testing/HiHat":
+                            hihat_duration.append(len(mono))
+                        elif dir == "test_data/testing/Snare":
+                            snare_duration.append(len(mono))
+                    else:
+                        os.remove(filepath)
+
+                    index = 0
+                    wavelength_transitions = []
+                    for value in mono:
+                        if index + 1 < len(mono) and mono[index] < 0 and mono[index + 1] > 0:
+                            wavelength_transitions.append(index)
+                        index += 1
+
+                    wave_index = 0
+                    wavelengths = []
+                    for value in wavelength_transitions:
+                        if wave_index + 2 < len(wavelength_transitions):
+                            wavelengths.append(
+                                wavelength_transitions[wave_index + 2] - wavelength_transitions[wave_index])
+                        wave_index += 2
+
+                    if dir == "test_data/testing/Kick":
+                        kick_wavelengths.append(wavelengths)
+                    elif dir == "test_data/testing/HiHat":
+                        hihat_wavelengths.append(wavelengths)
+                    elif dir == "test_data/testing/Snare":
+                        snare_wavelengths.append(wavelengths)
+
+        avg_kick_wave = []
+
+        for wav in kick_wavelengths:
+            wave_sum = 0
+            for wavelength in wav:
+                wave_sum += wavelength
+            if len(wav) == 0:
+                avg_kick_wave.append(wave_sum)
+            else:
+                avg_kick_wave.append(wave_sum / len(wav))
+
+        avg_hihat_wave = []
+
+        for wav in hihat_wavelengths:
+            wave_sum = 0
+            for wavelength in wav:
+                wave_sum += wavelength
+            if len(wav) == 0:
+                avg_hihat_wave.append(wave_sum)
+            else:
+                avg_hihat_wave.append(wave_sum / len(wav))
+
+        avg_snare_wave = []
+
+        for wav in snare_wavelengths:
+            wave_sum = 0
+            for wavelength in wav:
+                wave_sum += wavelength
+            if len(wav) == 0:
+                avg_snare_wave.append(wave_sum)
+            else:
+                avg_snare_wave.append(wave_sum / len(wav))
+
+
+        from_kick = []
+        from_snare = []
+        from_hihat = []
+        for j in range(3):
+            for i in range(10):
+                from_kick.append(math.hypot(kick_duration[i] - durations[j], avg_kick_wave[i] - wave_sums[j]))
+                from_hihat.append(math.hypot(hihat_duration[i] - durations[j], avg_hihat_wave[i] - wave_sums[j]))
+                from_snare.append(math.hypot(snare_duration[i] - durations[j], avg_snare_wave[i] - wave_sums[j]))
+
+        compare = []
+        kick_predictor = [0, 0, 0, 0]
+        hihat_predictor = [0,0,0,0]
+        snare_predictor = [0,0,0,0]
+        for i in range(30):
+            compare = []
+            compare.append(from_kick[i])
+            compare.append(from_hihat[i])
+            compare.append(from_snare[i])
+            min_val = min(compare)
+
+            # True positive
+            if min_val in from_kick and i < 10:
+                kick_predictor[0] += 1
+            # False Negative
+            elif not min_val in from_kick and i < 10:
+                kick_predictor[1] += 1
+            # False Positive
+            elif min_val in from_kick and i >= 10:
+                kick_predictor[2] += 1
+            # De Morgan's law for proper negation
+            # True negative
+            elif not min_val in from_kick or not i >= 10:
+                kick_predictor[3] += 1
+
+
+            # True positive
+            if min_val in from_hihat and i >= 10 and i < 20:
+                hihat_predictor[0] += 1
+            # False Negative
+            elif not min_val in from_hihat and i >= 10 and i < 20:
+                hihat_predictor[1] += 1
+            # False Positive
+            elif min_val in from_hihat and not (i >= 10 and i < 20):
+                hihat_predictor[2] += 1
+            # De Morgan's law for proper negation
+            # True negative
+            elif not min_val in from_hihat or not (i >= 10 and i < 20):
+                hihat_predictor[3] += 1
+
+
+            # True positive
+            if min_val in from_snare and i >= 20:
+                snare_predictor[0] += 1
+            # False Negative
+            elif not min_val in from_snare and i >= 20:
+                snare_predictor[1] += 1
+            # False Positive
+            elif min_val in from_snare and i < 20:
+                snare_predictor[2] += 1
+            # De Morgan's law for proper negation
+            # True negative
+            elif not min_val in from_snare or not i < 20:
+                snare_predictor[3] += 1
+
+        print "kick predictor: " + str(kick_predictor)
+        print "hihat predictor: " + str(hihat_predictor)
+        print "snare predictor: " + str(snare_predictor)
+
 
     def __init__(self):
         self.root = Tk()
@@ -209,8 +377,9 @@ class Train:
         self.lbl_rec = Label(self.root, text="")
 
         self.dropdown.pack()
-        self.btn_train.pack()
         self.btn_record.pack()
+        self.btn_train.pack()
+        self.btn_test.pack()
         self.lbl_rec.pack()
 
         mainloop()
