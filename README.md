@@ -1,3 +1,6 @@
 # Boom-Bap
 
-THIS ENTIRE CONCEPT WAS WRITTEN FROM THE GROUND-UP BECAUSE NO AUDIO ANALYSIS NOR CLASSIFICATION LIBRARIES WORKED.  I learned a lot though :)
+Jacob Craffey
+Gaelen McIntee 
+Desmin Little
+Joel Brodzinski
